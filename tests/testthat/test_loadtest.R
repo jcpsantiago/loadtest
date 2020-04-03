@@ -136,3 +136,14 @@ test_that("query path is correctly parsed", {
          query_parameters = list(postId = "1", userId = "1"))
   )
 })
+
+test_that("encode_html_entities works", {
+  test_body <- list(title = "this & that",
+                    body = "!@#$%^&*()-=+~`?/>.<,±§'|:;{]{}äüãçöß]",
+                    userId = 1)
+  json_body <- jsonlite::toJSON(test_body, auto_unbox = TRUE)
+  expect_equal(
+    as.character(encode_html_entities(json_body)),
+    "{&quot;title&quot;:&quot;this &amp; that&quot;,&quot;body&quot;:&quot;!@#$%^&amp;*()-=+~`?/&gt;.&lt;,±§&apos;|:;{]{}äüãçöß]&quot;,&quot;userId&quot;:1}"
+  )
+})

@@ -120,6 +120,29 @@ parse_url <- function(url){
   list(protocol = protocol, domain = domain, path = path, port = port)
 }
 
+#' Encode HTML/XML entities
+#'
+#' Jemeter's documentation in XML which means special characters like &, <, >
+#' need to be encoded as HTML entities. This function does that without dependencies.
+#'
+#' @param stringified_body the request body as a single string
+#'
+#' @return a string
+#'
+#' @examples
+#' encode_html_entities('{"title":"this & that"}')
+encode_html_entities <- function(stringified_body) {
+  body_noamp <- gsub("&", "&amp;", stringified_body)
+  body_noquot <- gsub("\"", "&quot;", body_noamp)
+  body_nogt <- gsub(">", "&gt;", body_noquot)
+  body_nolt <- gsub("<", "&lt;", body_nogt)
+  body_noapos <- gsub("\'", "&apos;", body_nolt)
+
+  encoded_body <- gsub("\"", "&quot;", body_noapos)
+
+  encoded_body
+}
+
 #' Run a load test of an HTTP request
 #'
 #' This is the core function of the package, which creates many HTTP requests using Apache JMeter.
@@ -230,9 +253,11 @@ loadtest <- function(url,
   if(!is.null(body)){
 
     if(encode=="json"){
-      request_body <- gsub("\"", "&quot;", jsonlite::toJSON(body,auto_unbox=TRUE))
+      json_body <- jsonlite::toJSON(body,auto_unbox=TRUE)
+      request_body <- encode_html_entities(json_body)
+
     } else if(encode=="raw"){
-      request_body <- gsub("\"", "&quot;", body)
+      request_body <- request_body <- encode_html_entities(body)
     } else {
       stop("'encode' value not yet supported")
     }
