@@ -57,3 +57,14 @@ test_that("loadtest works with more method/headers/body", {
   expect_equal(nrow(results), threads*loops, label = "Table had invalid number of rows")
   expect_true(all(results$request_status=="Success"),label = "Some requests failed")
 })
+
+test_that("encode_html_entities works", {
+  test_body <- list(title = "this & that",
+                    body = "!@#$%^&*()-=+~`?/>.<,±§'|:;{]{}äüãçöß]",
+                    userId = 1)
+  json_body <- jsonlite::toJSON(test_body, auto_unbox = TRUE)
+  expect_equal(
+    as.character(encode_html_entities(json_body)),
+    "{&quot;title&quot;:&quot;this &amp; that&quot;,&quot;body&quot;:&quot;!@#$%^&amp;*()-=+~`?/&gt;.&lt;,±§&apos;|:;{]{}äüãçöß]&quot;,&quot;userId&quot;:1}"
+  )
+})
