@@ -28,6 +28,51 @@ if (getRversion() >= "2.15.1") {
   )
 }
 
+#' Convert a query string into its parts
+#'
+#' This function gets the query parameters from a url as input,
+#' and outputs a list. Each element's name is the name of the parameters,
+#' and each element's value is the parameter's value.
+#'
+#' @param query_string a string containing the query parameters e.g.: "postId=1&userId=1"
+#'
+#' @return a list
+#'
+#' @examples
+#' parse_query_string("postId=1&userId=1")
+parse_query_string <- function(query_string) {
+  query_parts <- strsplit(query_string, "&", fixed = TRUE)[[1]]
+  parameters <- strsplit(query_parts, "=", fixed = TRUE)
+  valid_parameters <- parameters[sapply(parameters, length) == 2]
+
+  if (length(valid_parameters) < length(parameters)) {
+    warning(
+      paste("The following parameters did not have a value and were dropped:",
+            paste(sapply(setdiff(parameters, valid_parameters), "[[", 1), collapse = ", "))
+    )
+  }
+
+  keys <- sapply(valid_parameters, "[[", 1)
+  decoded_keys <- unname(sapply(keys, URLdecode))
+
+  parameter_values <- sapply(valid_parameters, "[[", 2)
+  decoded_values <- unname(sapply(parameter_values, URLdecode))
+
+  return_list <- as.list(setNames(decoded_values, decoded_keys))
+
+  unique_names <- unique(names(return_list))
+
+  if (length(unique_names) < length(names(return_list))) {
+    warning(
+      paste("Duplicate parameters found, using only the first occurence of:",
+            paste(names(return_list)[duplicated(return_list)]), collapse = ", ")
+    )
+  }
+
+  return_list[unique_names]
+}
+
+
 #' Convert a url into core components
 #'
 #' This code takes a url and breaks it into several components
@@ -52,8 +97,15 @@ parse_url <- function(url){
     protocol <- "http"
   }
 
-  domain <- parsed_url[[3]]
-  path <- parsed_url[[5]]
+  domain <- gsub("/", "", parsed_url[[3]])
+  full_path <- parsed_url[[5]]
+  path_elements <- strsplit(parsed_url[[5]], "\\?")
+
+  if (length(path_elements[[1]]) == 0) {
+    path <- "/"
+  } else {
+    path <- path_elements[[1]][[1]]
+  }
 
   # find the port
   port <- parsed_url[[4]]
@@ -66,7 +118,38 @@ parse_url <- function(url){
     }
   }
 
+  if (length(path_elements[[1]]) > 1) {
+    query_parameters <- parse_query_string(path_elements[[1]][[2]])
+    return(
+      list(protocol = protocol, domain = domain, path = path, port = port,
+           query_parameters = query_parameters)
+    )
+  }
+
   list(protocol = protocol, domain = domain, path = path, port = port)
+}
+
+#' Encode HTML/XML entities
+#'
+#' Jemeter's documentation in XML which means special characters like &, <, >
+#' need to be encoded as HTML entities. This function does that without dependencies.
+#'
+#' @param stringified_body the request body as a single string
+#'
+#' @return a string
+#'
+#' @examples
+#' encode_html_entities('{"title":"this & that"}')
+encode_html_entities <- function(stringified_body) {
+  body_noamp <- gsub("&", "&amp;", stringified_body)
+  body_noquot <- gsub("\"", "&quot;", body_noamp)
+  body_nogt <- gsub(">", "&gt;", body_noquot)
+  body_nolt <- gsub("<", "&lt;", body_nogt)
+  body_noapos <- gsub("\'", "&apos;", body_nolt)
+
+  encoded_body <- gsub("\"", "&quot;", body_noapos)
+
+  encoded_body
 }
 
 #' Run a load test of an HTTP request
@@ -135,7 +218,6 @@ loadtest <- function(url,
                      loops = 16,
                      ramp_time = 0,
                      delay_per_request = 0){
-
   invisible(check_java_installed())
   invisible(check_jmeter_installed())
 
@@ -148,6 +230,7 @@ loadtest <- function(url,
   domain <- parsed_url$domain
   path <- parsed_url$path
   port <- parsed_url$port
+  query_parameters <- parsed_url$query_parameters
 
   read_file_as_char <- function(file_name){
     readChar(file_name, file.info(file_name)$size)
@@ -156,7 +239,7 @@ loadtest <- function(url,
   template <- read_file_as_char(system.file("template.jmx", package = "loadtest")) # tempate for the full request
   header_template <- read_file_as_char(system.file("header_template.txt", package = "loadtest")) # template for each request header
   body_template <- read_file_as_char(system.file("body_template.txt", package = "loadtest")) # template for the request body, if one is needed
-
+  query_parameters_template <- read_file_as_char(system.file("query_parameters_template.txt", package = "loadtest")) # template for the query parameters, if one is needed
 
   original_headers <- headers
   original_body <- body
@@ -179,15 +262,24 @@ loadtest <- function(url,
   if(!is.null(body)){
 
     if(encode=="json"){
-      request_body <- gsub("\"", "&quot;", jsonlite::toJSON(body,auto_unbox=TRUE))
+      json_body <- jsonlite::toJSON(body,auto_unbox=TRUE)
+      request_body <- encode_html_entities(json_body)
+
     } else if(encode=="raw"){
-      request_body <- gsub("\"", "&quot;", body)
+      request_body <- request_body <- encode_html_entities(body)
     } else {
       stop("'encode' value not yet supported")
     }
     body <- glue::glue(body_template,request_body = request_body)
   } else {
     body <- ""
+  }
+
+  if (!is.null(query_parameters)) {
+    query_parameters_in_template <- lapply(seq_along(query_parameters), function(i) glue::glue(query_parameters_template, name=names(query_parameters)[[i]],value=query_parameters[[i]]))
+    query_parameters <- paste0(query_parameters_in_template,collapse="\n")
+  } else {
+    query_parameters <- ""
   }
 
   # where to save the test specification
