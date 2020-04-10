@@ -7,9 +7,9 @@
 loadtest_report(results, output_file = NULL)
 }
 \arguments{
-\item{output_file}{the location to save the report. Defaults to creating loadtest_report.html in the working directory.}
+\item{results}{the output of using loadtest()}
 
-\item{result}{the output of using loadtest()}
+\item{output_file}{the location to save the report. Defaults to creating loadtest_report.html in the working directory.}
 }
 \description{
 This function uses R markdown to take the results of a jmeter run and turn it

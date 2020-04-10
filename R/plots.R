@@ -25,7 +25,7 @@
 #' @return A ggplot2 showing the elapsed times of the requests during the test
 #' @examples
 #' results <- loadtest("google.com","GET")
-#' plot_elapsed_times(result)
+#' plot_elapsed_times(results)
 #' @export
 plot_elapsed_times <- function(results){
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
@@ -42,7 +42,7 @@ plot_elapsed_times <- function(results){
     ggplot2::scale_color_manual(values=c("#606060", "#E20074"), drop=FALSE)+
     ggplot2::theme(legend.position = "bottom")+
     ggplot2::scale_y_continuous(limits=c(0,NA))+
-    ggplot2::geom_hline(yintercept = median(results$elapsed))
+    ggplot2::geom_hline(yintercept = stats::median(results$elapsed))
 }
 
 #' Plot the elapsed times of the requests as a histogram
