@@ -23,7 +23,7 @@
 #'
 #' This function uses R markdown to take the results of a jmeter run and turn it
 #'
-#' @param result the output of using loadtest()
+#' @param results the output of using loadtest()
 #' @param output_file the location to save the report. Defaults to creating loadtest_report.html in the working directory.
 #' @examples
 #' results <- loadtest(url = "https://www.t-mobile.com", method="GET", threads = 3, loops = 5)

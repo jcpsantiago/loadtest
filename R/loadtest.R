@@ -18,6 +18,15 @@
 # software without specific prior written permission.
 # =========================================================================
 
+## quiets concerns of R CMD check re: the variables in pipelines
+if (getRversion() >= "2.15.1") {
+  utils::globalVariables(
+    c(
+      ".", "time_since_start", "elapsed", "request_status", "elapsed", "thread",
+      "time_since_start_rounded", "n", "p", "label"
+    )
+  )
+}
 
 #' Convert a url into core components
 #'
@@ -199,7 +208,7 @@ loadtest <- function(url,
   message("loadtest - completed load test")
 
   # read back in the results as a data frame -------------------------------
-  output <- read.csv(save_location,
+  output <- utils::read.csv(save_location,
                             stringsAsFactors = FALSE,
                             colClasses = c(
                               timeStamp = "numeric",

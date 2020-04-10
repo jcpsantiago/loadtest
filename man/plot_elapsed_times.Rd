@@ -17,5 +17,5 @@ Plot the elapsed times of the requests
 }
 \examples{
 results <- loadtest("google.com","GET")
-plot_elapsed_times(result)
+plot_elapsed_times(results)
 }
